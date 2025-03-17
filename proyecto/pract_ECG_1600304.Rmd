@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE,eval=T,include=T,message = FALSE,warning=FALSE
 
 - Investiga qué función de R puedes usar para importar el ECG.
 
-Para leer el archivo hea
+Para leer el archivo .hea utilizamos readLines(), y para el archivo .dat lo leemos con readBin().
 
 ```{r}
 # Lee el archivo .hea
@@ -23,11 +23,50 @@ lineas <- readLines("ECGPCG0003.hea")
 archivo_dat <- "ECGPCG0003.dat"
 con <- file(archivo_dat, "rb")
 señales <- readBin(con, integer(), n = 960000 / 2, size = 2, endian = "little")
+colnames(señales) <- c("ECG", "PCG")
+señales_def<-as.data.frame(señales)
+```
+
+```{r}
+head(señales_def)
+```
+
+```{r}
+# Graficar la señal de ECG
+plot(señales[, "ECG"], type = "l", col = "blue", main = "Señal ECG", xlab = "Muestras", ylab = "Amplitud")
+
+# Graficar la señal de PCG
+plot(señales[, "PCG"], type = "l", col = "red", main = "Señal PCG", xlab = "Muestras", ylab = "Amplitud")
 ```
 
 
-- Busca alguna librería que calcule los picos R
+- Busca alguna librería que calcule los picos R.
+
+```{r}
+#Detectamos los picos
+library(pracma)
+
+
+# Detectar picos R en la señal de ECG
+picos_R <- findpeaks(señales_def$ECG, minpeakheight = max(señales_def$ECG) * 0.5)  # Ajusta el umbral según sea necesario
+
+# Mostrar las posiciones de los picos R
+print(picos_R)
+
+
+# Extraer las posiciones de los picos R
+posiciones_R <- picos_R[, 2]  # La segunda columna contiene las posiciones de los picos
+
+```
 
 - Calcula los intervalos RR
+```{r}
+# Calcular los intervalos RR (en muestras)
+intervalos_RR_muestras <- diff(posiciones_R)
+
+# Mostrar los intervalos RR
+print(intervalos_RR_muestras)
+```
+
 
 - Usa algún método estadístico para detectar valores anómalos en la serie
