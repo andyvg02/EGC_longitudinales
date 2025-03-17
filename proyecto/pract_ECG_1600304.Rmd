@@ -1,0 +1,33 @@
+---
+title: "Pràctica ECG y outliers"
+author: "Andy Vacas Garcia, 1600304"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval=T,include=T,message = FALSE,warning=FALSE)
+
+```
+
+
+- Investiga qué función de R puedes usar para importar el ECG.
+
+Para leer el archivo hea
+
+```{r}
+# Lee el archivo .hea
+
+lineas <- readLines("ECGPCG0003.hea")
+# Lee el archivo .dat (asumiendo formato binario de 16 bits)
+archivo_dat <- "ECGPCG0003.dat"
+con <- file(archivo_dat, "rb")
+señales <- readBin(con, integer(), n = 960000 / 2, size = 2, endian = "little")
+```
+
+
+- Busca alguna librería que calcule los picos R
+
+- Calcula los intervalos RR
+
+- Usa algún método estadístico para detectar valores anómalos en la serie
