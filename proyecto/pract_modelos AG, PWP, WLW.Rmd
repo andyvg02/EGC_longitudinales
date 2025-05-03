@@ -1,0 +1,96 @@
+---
+title: "Modelos AG, PWP, WLW"
+author: "Andy Vacas Garcia, 1600304"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval=T,include=T,message = FALSE,warning=FALSE)
+```
+
+## Exercise 
+
+Data lymphoma is avaliable at gcmrec package. It contains cancer relapses times after first treatment in patients diagnosed with low grade lymphoma. Data can be loaded into R by executing.
+
+```{r}
+library("survival")
+library("mstate")
+
+data(lymphoma, package = "gcmrec")
+```
+
+NOTE: variable time contains inter-occurence times, event is the censoring variable that is 1 for cancer relapses and 0 for the last follow up time indicating thst the event is not observed and the variable id identifies each patient.
+
+## Exercise 1:
+
+- Estimate the AG, PWP-Gap time, PWP-Total time and WLW models to determine whether there are differences in the relapsing time depending on the number of lesions at diagnosis (variable distrib). NOTE: you will need to create the proper data frames for PWT-Gap time and WLW models.
+
+```{r}
+#Ag
+ag_model <- coxph(Surv(time, event) ~ distrib + cluster(id), data = lymphoma)
+summary(ag_model)
+
+#WLW
+wlw_model <- coxph(Surv(time, event) ~ distrib + strata(event) 
+                   + cluster(id), data = lymphoma)
+summary(wlw_model)
+
+#PWP
+# Crear la variable 'event_number' que indica el número de evento por paciente
+lymphoma <- lymphoma[order(lymphoma$id, lymphoma$time), ]
+lymphoma$event_number <- ave(lymphoma$event, lymphoma$id, FUN = cumsum)
+
+# Crear las variables Tstart y Tstop para los modelos PWP
+lymphoma <- lymphoma[order(lymphoma$id, lymphoma$time), ]
+lymphoma$Tstart <- ave(lymphoma$time, lymphoma$id, FUN = function(x) c(0, head(x, -1)))
+lymphoma$Tstop <- lymphoma$time
+
+#PWP_Gap
+pwp_gap_model <- coxph(Surv(Tstart, Tstop, event) ~ distrib 
+                       + strata(event_number) + cluster(id), data = lymphoma)
+summary(pwp_gap_model)
+
+
+#PWP_total
+pwp_total_model <- coxph(Surv(time, event) ~ distrib + strata(event_number) 
+                         + cluster(id), data = lymphoma)
+summary(pwp_total_model)
+
+```
+
+
+- Do we obtain the same conclusion by using the three models? (NOTE: use some of the functions we have seen in the lectures to prepare the required data)
+
+Solo el modelo AG detecta un efecto significativo de distrib sobre el tiempo de recaída. Los otros modelos (WLW, PWP-Gap y PWP-Total) no encuentran efectos significativos.
+
+
+
+
+- Repeat the same analyses adjusting for sex and response to the treatment (variable tt effaage). Do we obtain the same conclusion as in the models without such adjustment?
+
+NOTE: variable distrib encodes the lesions involved at diagnosis and has 4 categories (0=Single, 1=Localized, 2=More than one nodal site, 3= Generalized)
+
+
+```{r}
+#AG ajustat
+ag_model_adj <- coxph(Surv(time, event) ~ distrib + sex 
+                      + effage + cluster(id), data = lymphoma)
+summary(ag_model_adj)
+
+#WLW ajustat
+wlw_model_adj <- coxph(Surv(time, event) ~ distrib + sex 
+                       + effage + strata(event) + cluster(id), data = lymphoma)
+summary(wlw_model_adj)
+
+#PWP_Gap ajustat
+pwp_gap_model_adj <- coxph(Surv(Tstart, Tstop, event) ~ distrib + sex 
+                           + effage + strata(event_number) + cluster(id), data = lymphoma)
+summary(pwp_gap_model_adj)
+
+#PWP_Total ajustat
+pwp_total_model_adj <- coxph(Surv(time, event) ~ distrib + sex + effage 
++ strata(event_number) + cluster(id), data = lymphoma)
+summary(pwp_total_model_adj)
+```
+
+Tras ajustar por sexo y respuesta al tratamiento (effage), el efecto de distrib sigue siendo significativo en el modelo AG, y además se vuelve significativo en el modelo PWP-Gap. En los modelos WLW y PWP-Total, distrib no muestra efecto significativo. Por lo tanto, las conclusiones cambian al incorporar estas variables, lo cual sugiere que el efecto de distrib puede estar condicionado por otros factores clínicos.
