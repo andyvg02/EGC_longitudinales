@@ -1,0 +1,130 @@
+---
+title: "estimación de la función de supervivencia para eventos recurrentes"
+author: "Andy Vacas Garcia, 1600304"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval=T,include=T,message = FALSE,warning=FALSE)
+```
+
+```{r}
+# Cargar paquetes
+
+
+library(survival)
+library(ggplot2)
+devtools::install_github("isglobal-brge/survrec",
+build = FALSE)
+library(survrec)
+
+
+install.packages("C:/Users/andyv/Downloads/gcmrec_1.0-5.zip", repos = NULL, type = "win.binary")
+
+devtools::install_github("isglobal-brge/TestSurvRec",build = FALSE)
+library(TestSurvRec)
+```
+
+
+Data lymphoma is available at gcmrec package. It contains cancer relapses times after first treatment in patients diagnosed with low grade lymphoma. Data can be loaded into R by executing:
+
+```{r}
+data(lymphoma, package = "gcmrec")
+```
+
+NOTE: variable time contains inter-occurrence times, event is the censoring variable that is 1 for cancer relapses and 0 for the last follow up time indicating that the event is not observed and the variable id identifies each patient.
+
+
+
+Exercise 1:
+Estimate survival function using Peña-Strawderman-Hollander, Wang-Chang and a Frailty model.
+```{r}
+# Peñá-Strawderman-Hollander
+
+fit_psh <- survfitr(Survr(id, time, event)~1,data=lymphoma, type="pena-strawderman-hollander")
+
+# Wang-Chang
+fit_wc <- survfitr(Survr(id, time, event)~1,data=lymphoma, type="wang-chang")
+
+# Frailty model (modelo de supervivencia con efecto aleatorio por paciente)
+fit_frailty <-survfitr(Survr(id, time, event)~1,data=lymphoma, type="MLEfrailty")
+```
+
+
+Represent the three estimated survival curves in a figure.
+
+```{r}
+plot(fit_wc,conf.int = FALSE)
+lines(fit_psh,col="red")
+lines(fit_frailty,col="green")
+legend("topright",c("WC","PSH","Frailty"),col=c("black","red","green"),lty = 1)
+
+```
+
+Is there correlation among inter-occurrence times?
+
+```{r}
+# Correlación de los tiempos entre eventos por paciente
+library(dplyr)
+
+# Tiempos por paciente
+pairs <- lymphoma %>%
+  group_by(id) %>%
+  filter(n() > 1) %>%
+  summarise(cor = ifelse(n() >= 2, cor(time[-n()], time[-1]), NA))
+
+mean(pairs$cor, na.rm = TRUE)  # media de correlación entre eventos
+```
+
+
+Which is the best method to analyze these data?
+
+
+Exercise 2:
+Investigate how the package TestSurvRec compares two whole survival curves (see References section to both package and manuscript describing how it works).
+
+By using this method:
+
+Compare cancer relapse times between males and females (variable sex).
+
+```{r}
+subset_00<-lymphoma
+subset_00$group<-as.factor(subset_00$sex)
+Plot.Event.Rec(subset_00)
+# Comparar curvas de supervivencia: sexo
+Dif.Surv.Rec(subset_00,"all",1,1,0,0)
+
+Dif.Surv.Rec(subset_00,"Grec")
+Print.Summary(subset_00)
+```
+
+Compare cancer relapse time between patients having single lesions and localized lesions (variable distrib).
+```{r}
+subset_01 <- lymphoma[lymphoma$distrib %in% c(0, 1), ]
+subset_01$group<-as.factor(subset_01$distrib)
+
+Plot.Event.Rec(subset_01)
+# Comparar curvas de supervivencia: sexo
+Dif.Surv.Rec(subset_01,"all",1,1,0,0)
+
+Dif.Surv.Rec(subset_01,"Grec")
+Print.Summary(subset_01)
+```
+
+Compare cancer relapse time between patients having single lesions and lesions in more than one nodal site (variable distrib).
+
+```{r}
+subset_13 <- lymphoma[lymphoma$distrib %in% c(1, 3), ]
+subset_13$group<-as.factor(subset_13$distrib)
+
+Plot.Event.Rec(subset_13)
+# Comparar curvas de supervivencia: sexo
+Dif.Surv.Rec(subset_13,"all",1,1,0,0)
+
+Dif.Surv.Rec(subset_13,"Grec")
+Print.Summary(subset_13)
+```
+
+
+NOTE: variable distrib encodes the lesions involved at diagnosis and has 4 categories (0 = Single, 1 = Localized, 2 = More than one nodal site, 3 = Generalized)
